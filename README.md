@@ -15,11 +15,16 @@ It uses the new `nhmmer` tool that comes with HMMER 3.1 for HMM searching in RNA
 Multithreading is supported and one can expect roughly linear speed-ups with more CPUs.
 
 ## Installation
+Ensure the binaries to provided with Barrnap are found first:
 
+```
+export PATH=<Path to Barrnap binaries>:$PATH
+```
 ### Requirements
 * [Perl 5.xx](https://dev.perl.org/perl5/) (core modules only)
 * [nhmmer](https://hmmer.org/) (part of HMMER 3.x)
 * [bedtools >= 2.27.0](http://bedtools.readthedocs.io/en/latest/)
+* [seqtk >= master](https://github.com/lh3/seqtk/)
 
 ### Conda
 Install [Conda](https://conda.io/docs/) or [Miniconda](https://conda.io/miniconda.html):
