@@ -19,6 +19,7 @@ my $URL = 'https://github.com/tseemann/barrnap';
 my $DBDIR = "$FindBin::RealBin/../db";
 my $OPSYS = $^O;
 my $BINDIR = "$FindBin::RealBin/../binaries/$OPSYS";
+my $SCRIPTDIR = "$FindBin::RealBin";
 
 my %KINGDOM = (map { substr($_,0,1) => $_ } qw(bac arc euk mito));
 my %LENG = (
@@ -71,6 +72,7 @@ msg("Using database: $hmmdb");
 
 my $fastx = shift @ARGV;
 my $tmpfh;
+
 if (defined($fastx) && $fastx eq '-'  or  !defined($fastx) && !-t \*STDIN) {
   $tmpfh = File::Temp->new(UNLINK=>1);
   msg("Copying STDIN to a temporary file:", $tmpfh->filename);
@@ -80,6 +82,7 @@ if (defined($fastx) && $fastx eq '-'  or  !defined($fastx) && !-t \*STDIN) {
   $fastx = $tmpfh->filename;
   
 }
+
 if ($fastx =~ /\.gz$/){
   print "The input file is compressed, uncompressing...";
   my $cmd = "gzip -d $fastx";
@@ -215,7 +218,7 @@ if ($outseq) {
 
   if($isfastq){
     $infile = $fastq;
-    my $cmd = "fastq_bed_extract.py --fastq='$infile' --bed='$bed->filename' --out='$outseq'";
+    my $cmd = "$SCRIPTDIR/fastq_bed_extract.py --fastq='".$infile."' --bed='".$bed->filename."' --out='".$outseq."'";
     msg("Running: $cmd");
     system($cmd);
 
