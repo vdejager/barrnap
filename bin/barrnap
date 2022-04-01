@@ -69,38 +69,52 @@ msg("Using database: $hmmdb");
 # check if user is piping to STDIN
 # nhmmer needs to fseek() so we make a temp fasta file 
 
-my $fasta = shift @ARGV;
+my $fastx = shift @ARGV;
 my $tmpfh;
-if (defined($fasta) && $fasta eq '-'  or  !defined($fasta) && !-t \*STDIN) {
+if (defined($fastx) && $fastx eq '-'  or  !defined($fastx) && !-t \*STDIN) {
   $tmpfh = File::Temp->new(UNLINK=>1);
   msg("Copying STDIN to a temporary file:", $tmpfh->filename);
   while (<STDIN>) {
     print $tmpfh $_;
   }
-  $fasta = $tmpfh->filename;
+  $fastx = $tmpfh->filename;
   
 }
+if ($fastx =~ /\.gz$/){
+  print "The input file is compressed, uncompressing...";
+  my $cmd = "gzip -d $fastx";
+  msg("Running: $cmd");
+  system($cmd);
+  $fastx =~ s/\.gz//;
+  
 
-$fasta && -r $fasta or err("No input file on command line or stdin");
+}
+$fastx && -r $fastx or err("No input file on command line or stdin");
 
+msg("input file: $fastx");
 # check for input type
 my $isfastq = 0;
 my $fastq;
+my $fasta;
 
-open(my $fh, '<', $fasta) or die $!;
+open(my $fh, '<', $fastx) or die $!;
 my $firstline = <$fh>;
 
 # add check if input is fastq
+msg("Check input file");
 if ($firstline =~ m/^>/) {
-    # assume input is fasta format, do nothing
+    # assume input is fasta format, do nothing but assign fasta var.
+    msg("input file is in FASTA format.");
+    $fasta = $fastx;
     close($fh);
 } elsif ($firstline =~ m/^@/){
     # assume input is fastq format, convert it to fasta
-    $fastq = $fasta;
+    msg("Input is in FASTQ format, convert to FASTA");
+    $fastq = $fastx;
     $isfastq=1;
     my $tmpseqtkfh = File::Temp->new(UNLINK=>0);
     my $fastaseqtk = $tmpseqtkfh->filename;
-    my $cmd = "seqtk seq -A '$fasta' ";
+    my $cmd = "seqtk seq -A $fastx ";
     msg("Command: $cmd");
     msg("Command: $fastaseqtk");
     print $tmpseqtkfh  qx($cmd);
@@ -201,15 +215,28 @@ if ($outseq) {
 
   if($isfastq){
     $infile = $fastq;
-  }
+    my $cmd = "fastq_bed_extract.py --fastq='$infile' --bed='$bed->filename' --out='$outseq'";
+    msg("Running: $cmd");
+    system($cmd);
 
-  open(my $outseqfh,'>', $outseq);
-  my $bedfile = $bed->filename.".bed";
-  rename($bed->filename, $bedfile);
-  my $cmd = "seqtk subseq -n -s '$infile' ".$bedfile;
-  msg("Running: $cmd");
-  print $outseqfh qx($cmd);
-  close(outseqfh);
+  }else{
+    # mainly keep untouched compared to the original. 
+    # bedtools does not support extraction of fastq unfortunately
+    my $cmd = "bedtools getfasta -s -name+ -fo '$outseq' -fi '$fasta' -bed '".$bed->filename."'";
+    msg("Running: $cmd");
+    system($cmd);
+
+  }
+  
+  # using seqtk, modified to handle fastq files as well
+  #my $bedfile = $bed->filename.".bed";
+  #rename($bed->filename, $bedfile);
+  #my $cmd = "seqtk subseq -n -s '$infile' ".$bedfile;
+  #msg("Running: $cmd");
+  #print $outseqfh qx($cmd);
+  #close($outseqfh);
+
+}
 
 }
 
