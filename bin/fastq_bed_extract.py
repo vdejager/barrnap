@@ -67,7 +67,8 @@ def process_fastq_bed(fastq, bed, out):
                         record['sequence'] = record['sequence'][start:end]
                     
                     record['quality'] = record['quality'][start:end]
-                    record['name'] = f"{name}::{recordname}:{start}:{end}({strand})"
+                    record['name'] = f"@{name}::{recordname}:{start}:{end}({strand})"
+                    
                     filtered_records.append(record)
                 lines = []
     with open(out,'w') as ofh:
@@ -88,6 +89,7 @@ if __name__ == "__main__":
     parser.add_argument("--fastq", help="Fastq file to be filtered", required=True)
     parser.add_argument("--bed", help="bedfile to use for filtering", required=True)
     parser.add_argument("--out", help="Fastq output file", required=True)
+   
 
     args = parser.parse_args()
     if not args.fastq and not args.bed and not args.out:
