@@ -31,7 +31,7 @@ my $MAXLEN = int( 1.2 * max(values %LENG) );
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 # command line options
 
-my(@Options, $quiet, $kingdom, $threads, $evalue, $lencutoff, $reject, $incseq, $outseq);
+my(@Options, $quiet, $kingdom, $threads, $evalue, $lencutoff, $reject, $incseq, $outseq, $outfilter);
 setOptions();
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -65,7 +65,7 @@ my $kdom = $KINGDOM{ lc substr($kingdom,0,1) } or
 my $hmmdb = "$DBDIR/$kdom.hmm";
 err("Can't find database: $hmmdb") unless -r $hmmdb;
 msg("Using database: $hmmdb");
-
+msg("Using filter $outfilter");
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 # check if user is piping to STDIN
 # nhmmer needs to fseek() so we make a temp fasta file 
@@ -140,20 +140,21 @@ my %hitname;
 my @feat;
 my @bed;
 
-#plit output filter
+#split output filter
 my  @outfilter;
 if ($outfilter){
   @outfilter = sort(
-        map {   
-                s/^\s+//;  # strip leading spaces
-                s/\s+$//;  # strip trailing spaces
-                $_         # return the modified string
-            }
-            split ',', $outfilter
+      map {   
+            s/^\s+//;  # strip leading spaces
+            s/\s+$//;  # strip trailing spaces
+           $_         # return the modified string
+      }
+      split ',', $outfilter
     );
 }
 
-HIT: 
+
+HIT:
 foreach (@hits) {
   chomp;
   err("nhmmer failed to run - $_") if m/fail|error|core dump|bus error/i;
@@ -196,7 +197,7 @@ foreach (@hits) {
   
   if ($outfilter){
     $keep = 0;
-    foreach my $item (@outfilter) {
+    foreach my $item (@outfilter){
       my $re = qr/$item/;
       if ( $seqid =~ $re){
         $keep = 1;
@@ -215,8 +216,8 @@ foreach (@hits) {
     push @feat, [
       $seqid, "$EXE:$VERSION", 'rRNA', $begin, $end, $score, $strand, '.', $tags,
     ];
+  }
 }
-
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 # output a sorted GFF3
 
@@ -241,9 +242,7 @@ if ($outseq) {
   msg("Writing hit sequences to: $outseq");
   my $bed = File::Temp->new();
   for my $b (@bed) {
-  
     print $bed join("\t", @$b),"\n";
-  
   }
   $bed->seek(0, SEEK_END); # rewind
   my $infile = $fasta;
@@ -352,7 +351,8 @@ sub setOptions {
     {OPT=>"evalue=f",VAR=>\$evalue, DEFAULT=>1E-6, DESC=>"Similarity e-value cut-off"},
     {OPT=>"incseq!",  VAR=>\$incseq, DEFAULT=>0, DESC=>"Include FASTA _input_ sequences in GFF3 output"},
     {OPT=>"outseq=s",  VAR=>\$outseq, DEFAULT=>'', DESC=>"Save rRNA hit seqs to this FASTA or FASTQ file, depending on input"},
-    {OPT=>"outfilter=s",  VAR=>\$outseq, DEFAULT=>'', DESC=>"Filter only rRNA hit seqs from  the following categories: 5S, 5_8S, 12S, 16S, 18S, 23S. Separate multiple entries with a comma."},
+    {OPT=>"outfilter=s",  VAR=>\$outfilter, DEFAULT=>'', DESC=>"Filter only rRNA hit seqs from  the following categories:
+     5S, 5_8S, 12S, 16S, 18S, 23S. Separate multiple entries with a comma."},
   );
 
 #  (!@ARGV) && (usage(1));
