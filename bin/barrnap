@@ -139,6 +139,20 @@ my @hits = qx($cmd 2>&1);
 my %hitname;
 my @feat;
 my @bed;
+
+#plit output filter
+my  @outfilter;
+if ($outfilter){
+  @outfilter = sort(
+        map {   
+                s/^\s+//;  # strip leading spaces
+                s/\s+$//;  # strip trailing spaces
+                $_         # return the modified string
+            }
+            split ',', $outfilter
+    );
+}
+
 HIT: 
 foreach (@hits) {
   chomp;
@@ -176,15 +190,31 @@ foreach (@hits) {
     $prod .= " (partial)";
   }
 
-  # keep track of good hits for retrievel later
-  push @bed, [ $seqid, $begin-1, $end, $gene, 100, $strand ];
 
-  msg("Found:", $gene, $seqid, "L=$len/$LENG{$gene}", "$begin..$end", $strand, $prod);
-  my $tags = "Name=$gene;product=$prod";
-  $tags .= ";note=$note" if $note;
-  push @feat, [
-    $seqid, "$EXE:$VERSION", 'rRNA', $begin, $end, $score, $strand, '.', $tags,
-  ];
+  # check if the seqid matched the output filter criteria
+  my $keep = 1; # default keep every good hit
+  
+  if ($outfilter){
+    $keep = 0;
+    foreach my $item (@outfilter) {
+      my $re = qr/$item/;
+      if ( $seqid =~ $re){
+        $keep = 1;
+      }
+    }    
+  }
+  
+  # keep track of good hits for retrievel later
+  if ($keep){
+    push @bed, [ $seqid, $begin-1, $end, $gene, 100, $strand ];
+
+    msg("Found:", $gene, $seqid, "L=$len/$LENG{$gene}", "$begin..$end", $strand, $prod);
+    my $tags = "Name=$gene;product=$prod";
+    $tags .= ";note=$note" if $note;
+      
+    push @feat, [
+      $seqid, "$EXE:$VERSION", 'rRNA', $begin, $end, $score, $strand, '.', $tags,
+    ];
 }
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -211,7 +241,9 @@ if ($outseq) {
   msg("Writing hit sequences to: $outseq");
   my $bed = File::Temp->new();
   for my $b (@bed) {
+  
     print $bed join("\t", @$b),"\n";
+  
   }
   $bed->seek(0, SEEK_END); # rewind
   my $infile = $fasta;
@@ -320,6 +352,7 @@ sub setOptions {
     {OPT=>"evalue=f",VAR=>\$evalue, DEFAULT=>1E-6, DESC=>"Similarity e-value cut-off"},
     {OPT=>"incseq!",  VAR=>\$incseq, DEFAULT=>0, DESC=>"Include FASTA _input_ sequences in GFF3 output"},
     {OPT=>"outseq=s",  VAR=>\$outseq, DEFAULT=>'', DESC=>"Save rRNA hit seqs to this FASTA or FASTQ file, depending on input"},
+    {OPT=>"outfilter=s",  VAR=>\$outseq, DEFAULT=>'', DESC=>"Filter only rRNA hit seqs from  the following categories: 5S, 5_8S, 12S, 16S, 18S, 23S. Separate multiple entries with a comma."},
   );
 
 #  (!@ARGV) && (usage(1));
